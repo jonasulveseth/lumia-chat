@@ -252,6 +252,15 @@ class MemoryService:
             except Exception as e:
                 print(f"📋 Summary tool error: {e}")
 
+            # Check for file-related intents to bias towards files
+            file_intents = [
+                "fil", "filen", "dokument", "pdf", "word", "excel", "xlsx", "docx", "ppt", "presentation",
+                "bilaga", "bifogad", "attachment", "rapport", "avtal", "kontrakt", "specifikation"
+            ]
+            is_file_query = any(word in message_lower for word in file_intents)
+            
+            print(f"🔍 DEBUG: is_file_query: {is_file_query}")
+            
             # Fallback to basic Brain query with dynamic semantic enhancement
             search_terms = current_message
             
@@ -352,11 +361,19 @@ class MemoryService:
             
             print(f"🔍 DEBUG: Final detected_date: {detected_date}")
             print(f"🔍 DEBUG: Querying Brain with: '{search_terms}'")
+            
+            # Build metadata filter if file-focused
+            metadata_filter = None
+            if is_file_query:
+                metadata_filter = {"content_type": "file"}
+            
+            print(f"🔍 DEBUG: Querying Brain with: '{search_terms}' metadata_filter={metadata_filter}")
             brain_response = await self.brain_service.query_quick_context(
                 customer_id=user_id,
                 question=search_terms,
                 n_results=10,  # Get more results to filter from
-                date_filter=detected_date
+                date_filter=detected_date,
+                metadata_filter=metadata_filter
             )
             
             if brain_response and brain_response.sources:

@@ -20,7 +20,7 @@ class PromptTemplates:
         system_prompt = PromptTemplates.get_system_prompt()
         # Inject current date to help the LLM reason about "idag/igår" correctly
         today_str = datetime.now().strftime("%Y-%m-%d")
-        system_prompt = f"{system_prompt}\n\nDagens datum: {today_str}"
+        system_prompt = f"{system_prompt}\n\nDagens datum: {today_str}\n\nInstruktion om metadata: Om context innehåller metadata-fält (t.ex. content_type), ta särskild hänsyn till detta.\n- Prioritera content_type=chat för dialogsammanhang och användartoner.\n- När användaren refererar till en fil, eller context antyder content_type=file, behandla detta som filinnehåll: beskriv, sammanfatta eller hämta relevanta delar från filen.\n- Om flera content_types finns, vikta chat högt för samtalston men låt file styra faktainnehåll när frågan gäller dokument/filer."
         
         if context:
             return f"{system_prompt}\n\nContext: {context}\n\nUser: {user_message}\nLumia:"

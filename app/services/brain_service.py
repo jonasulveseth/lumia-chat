@@ -62,7 +62,8 @@ class BrainService:
         customer_id: str, 
         question: str, 
         n_results: int = 3,
-        date_filter: Optional[str] = None
+        date_filter: Optional[str] = None,
+        metadata_filter: Optional[Dict[str, Any]] = None
     ) -> Optional[BrainQueryResponse]:
         """
         Query Brain for relevant context.
@@ -72,6 +73,7 @@ class BrainService:
             question: Question to search for
             n_results: Number of results to return
             date_filter: Optional date filter (YYYY-MM-DD format)
+            metadata_filter: Optional metadata filter dict, e.g., {"content_type": "file"}
             
         Returns:
             BrainQueryResponse or None if error
@@ -89,6 +91,12 @@ class BrainService:
                 payload["metadata_filter"] = {"date": date_filter}
             else:
                 payload["metadata_filter"] = {"date": date_filter}
+        
+        # Merge explicit metadata filter (takes precedence/merges)
+        if metadata_filter:
+            existing = payload.get("metadata_filter", {})
+            existing.update(metadata_filter)
+            payload["metadata_filter"] = existing
         
         async with httpx.AsyncClient() as client:
             try:
@@ -126,7 +134,8 @@ class BrainService:
         customer_id: str, 
         question: str, 
         n_results: int = 2,
-        date_filter: Optional[str] = None
+        date_filter: Optional[str] = None,
+        metadata_filter: Optional[Dict[str, Any]] = None
     ) -> Optional[BrainQueryResponse]:
         """
         Quick query Brain for context (search results only, no LLM).
@@ -136,6 +145,7 @@ class BrainService:
             question: Question to search for
             n_results: Number of results to return
             date_filter: Optional date filter (YYYY-MM-DD format)
+            metadata_filter: Optional metadata filter dict, e.g., {"content_type": "file"}
             
         Returns:
             BrainQueryResponse with search results only (no answer)
@@ -152,6 +162,12 @@ class BrainService:
                 payload["metadata_filter"] = {"date": date_filter}
             else:
                 payload["metadata_filter"] = {"date": date_filter}
+        
+        # Merge explicit metadata filter
+        if metadata_filter:
+            existing = payload.get("metadata_filter", {})
+            existing.update(metadata_filter)
+            payload["metadata_filter"] = existing
         
         async with httpx.AsyncClient() as client:
             try:
