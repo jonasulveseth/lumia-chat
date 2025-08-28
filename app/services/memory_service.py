@@ -112,51 +112,74 @@ class MemoryService:
         return self.memory_cache[user_id]
 
     async def build_or_refresh_persona(self, user_id: str, force: bool = False) -> Optional[str]:
-        """Build a compact persona profile from Brain."""
+        """Build a compact persona profile from Brain with recency-weighted diversity."""
         try:
-            print("👤 Building persona profile...")
+            print("👤 Building persona profile (recency-weighted + diverse)...")
             
-            # Get recent conversations (last 7 days) for better persona
+            # Fetch a larger pool focused on recent, but not exclusively
             from datetime import datetime, timedelta
-            recent_date = (datetime.now() - timedelta(days=7)).strftime("%Y-%m-%d")
+            recent_date = (datetime.now() - timedelta(days=14)).strftime("%Y-%m-%d")
             
             brain_response = await self.brain_service.query_quick_context(
                 customer_id=user_id,
-                question="persona preferences background motivation goals interests recent conversations",
-                n_results=12,  # Get more to sort/filter
-                date_filter=recent_date  # Focus on recent conversations
+                question="persona preferences background motivation goals interests tone style likes dislikes activities habits summary recent conversations",
+                n_results=20,  # larger pool for diversity
+                date_filter=recent_date
             )
             
-            if brain_response and brain_response.sources:
-                # Prefer newest chat-based sources first
-                def get_timestamp(src):
-                    if isinstance(src, dict):
-                        md = src.get("metadata", {})
-                        return md.get("timestamp", "1970-01-01")
-                    return "1970-01-01"
-                
-                sources = [s for s in brain_response.sources if isinstance(s, dict)]
-                # Filter to chat conversations if tagged
-                chat_sources = [s for s in sources if (s.get("metadata", {}).get("content_type") == "chat" or s.get("metadata", {}).get("memory_type") == "conversation")]
-                if chat_sources:
-                    sources = chat_sources
-                
-                # Sort newest first
-                try:
-                    sources = sorted(sources, key=get_timestamp, reverse=True)
-                except Exception:
-                    pass
-                
-                # Extract key content from top few recent sources
-                content_pieces = []
-                for source in sources[:4]:
-                    txt = source.get("content") or source.get("text") or ""
-                    if txt:
-                        content_pieces.append(txt[:400])  # Slightly larger snippet
-                
-                if content_pieces:
-                    return "\n\n".join(content_pieces)
+            if not (brain_response and brain_response.sources):
+                return None
             
+            # Normalize sources
+            sources = [s for s in brain_response.sources if isinstance(s, dict)]
+            
+            # Prefer chat conversations but don't exclude other high-signal sources
+            chat_sources = [s for s in sources if (s.get("metadata", {}).get("content_type") == "chat" or s.get("metadata", {}).get("memory_type") == "conversation")]
+            non_chat_sources = [s for s in sources if s not in chat_sources]
+            
+            def get_ts(src):
+                md = src.get("metadata", {})
+                return md.get("timestamp", "1970-01-01")
+            
+            # Sort both groups by recency
+            chat_sources.sort(key=get_ts, reverse=True)
+            non_chat_sources.sort(key=get_ts, reverse=True)
+            
+            # Take a recency-weighted sample while keeping diversity across time
+            selected: list[dict] = []
+            max_total = 8
+            max_recent = 5  # stronger weight to recent
+            
+            # 1) Take top recent chats
+            selected.extend(chat_sources[:max_recent])
+            
+            # 2) Add diverse older chats (stride sampling)
+            remaining_chat = chat_sources[max_recent:]
+            if remaining_chat:
+                stride = max(1, len(remaining_chat) // 2)
+                selected.extend(remaining_chat[::stride][:2])
+            
+            # 3) Add some non-chat diverse items if space remains (e.g., summaries/notes)
+            remaining_slots = max_total - len(selected)
+            if remaining_slots > 0 and non_chat_sources:
+                stride_nc = max(1, len(non_chat_sources) // remaining_slots)
+                selected.extend(non_chat_sources[::stride_nc][:remaining_slots])
+            
+            # Deduplicate by content prefix to avoid repeats
+            seen = set()
+            content_pieces: list[str] = []
+            for src in selected:
+                txt = (src.get("content") or src.get("text") or "").strip()
+                if not txt:
+                    continue
+                key = (txt[:80] if len(txt) >= 80 else txt)
+                if key in seen:
+                    continue
+                seen.add(key)
+                content_pieces.append(txt[:400])  # concise snippets
+            
+            if content_pieces:
+                return "\n\n".join(content_pieces)
             return None
         except Exception:
             return None
