@@ -525,6 +525,7 @@ class MemoryService:
             
             metadata = {
                 "source": "chat",
+                "content_type": "chat",
                 "user_id": user_id,
                 "timestamp": current_time.isoformat(),
                 "date": current_time.strftime("%Y-%m-%d"),

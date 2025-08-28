@@ -124,6 +124,7 @@ class ChatService:
         
         metadata = {
             "source": "chat",
+            "content_type": "chat",
             "user_id": user_id,
             "context_used": context_used,
             "timestamp": current_time.isoformat(),
