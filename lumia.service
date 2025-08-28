@@ -1,0 +1,32 @@
+[Unit]
+Description=Lumia AI Chat Service
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/jonas/sites/lumia
+Environment=PATH=/home/jonas/sites/lumia/venv/bin
+ExecStart=/home/jonas/sites/lumia/venv/bin/python /home/jonas/sites/lumia/start_lumia.py
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+# Environment variables
+Environment=PYTHONPATH=/home/jonas/sites/lumia
+Environment=OLLAMA_BASE_URL=http://localhost:11434
+Environment=LLM_MODEL=qwen3:14b
+Environment=EMBEDDING_MODEL=nomic-embed-text
+Environment=BRAIN_API_URL=http://127.0.0.1:8000
+Environment=DATABASE_URL=sqlite:///./lumia.db
+Environment=SECRET_KEY=your-secret-key-here-change-in-production
+Environment=ALGORITHM=HS256
+Environment=ACCESS_TOKEN_EXPIRE_MINUTES=30
+Environment=CHROMA_PERSIST_DIRECTORY=./chroma_db
+Environment=DEBUG=False
+Environment=HOST=0.0.0.0
+Environment=PORT=8002
+
+[Install]
+WantedBy=multi-user.target 

@@ -1,0 +1,1 @@
+# Lumia - Lokal AI-chattjänst med personligt minne 
