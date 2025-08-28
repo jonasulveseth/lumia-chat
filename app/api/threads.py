@@ -173,6 +173,8 @@ async def stream_chat_in_thread(message: ThreadChatMessage) -> StreamingResponse
             # Update memory system in background using the brain_id
             asyncio.create_task(thread_service.memory_service.add_to_short_term_memory(effective_brain_id, message.message, full_response))
             asyncio.create_task(thread_service.memory_service.save_conversation_to_brain_async(effective_brain_id, message.message, full_response))
+            # Refresh persona to reflect new conversation
+            asyncio.create_task(thread_service.memory_service._refresh_persona_background(effective_brain_id))
             
             total_time = time.time() - start_time
             print(f"🧵 Thread chat completed in {total_time:.3f}s")

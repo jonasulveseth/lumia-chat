@@ -123,16 +123,36 @@ class MemoryService:
             brain_response = await self.brain_service.query_quick_context(
                 customer_id=user_id,
                 question="persona preferences background motivation goals interests recent conversations",
-                n_results=6,  # Fewer but more recent results
+                n_results=12,  # Get more to sort/filter
                 date_filter=recent_date  # Focus on recent conversations
             )
             
             if brain_response and brain_response.sources:
-                # Extract key content from recent conversations
+                # Prefer newest chat-based sources first
+                def get_timestamp(src):
+                    if isinstance(src, dict):
+                        md = src.get("metadata", {})
+                        return md.get("timestamp", "1970-01-01")
+                    return "1970-01-01"
+                
+                sources = [s for s in brain_response.sources if isinstance(s, dict)]
+                # Filter to chat conversations if tagged
+                chat_sources = [s for s in sources if (s.get("metadata", {}).get("content_type") == "chat" or s.get("metadata", {}).get("memory_type") == "conversation")]
+                if chat_sources:
+                    sources = chat_sources
+                
+                # Sort newest first
+                try:
+                    sources = sorted(sources, key=get_timestamp, reverse=True)
+                except Exception:
+                    pass
+                
+                # Extract key content from top few recent sources
                 content_pieces = []
-                for source in brain_response.sources[:2]:  # Take fewer, more recent sources
-                    if isinstance(source, dict) and "content" in source:
-                        content_pieces.append(source["content"][:300])  # More content per piece
+                for source in sources[:4]:
+                    txt = source.get("content") or source.get("text") or ""
+                    if txt:
+                        content_pieces.append(txt[:400])  # Slightly larger snippet
                 
                 if content_pieces:
                     return "\n\n".join(content_pieces)
@@ -145,7 +165,7 @@ class MemoryService:
         """Refresh persona profile in background without blocking main flow."""
         try:
             persona = await self.build_or_refresh_persona(user_id)
-            if persona:
+            if persona is not None:
                 memory = self.get_user_memory(user_id)
                 memory.persona_profile = persona
                 memory.persona_last_updated = datetime.now()

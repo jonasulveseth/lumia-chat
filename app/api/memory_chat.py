@@ -92,6 +92,8 @@ async def chat_with_memory_simple(message: ChatMessage):
     asyncio.create_task(memory_service.add_to_short_term_memory(effective_brain_id, message.message, full_response))
     asyncio.create_task(memory_service.update_long_term_memory_async(effective_brain_id))
     asyncio.create_task(memory_service.save_conversation_to_brain_async(effective_brain_id, message.message, full_response))
+    # Trigger persona refresh so it reflects latest chats
+    asyncio.create_task(memory_service._refresh_persona_background(effective_brain_id))
     
     total_time = time.time() - start_time
     print(f"⏱️  Total request time: {total_time:.3f}s")
@@ -198,6 +200,8 @@ async def stream_memory_chat(message: ChatMessage) -> StreamingResponse:
         asyncio.create_task(memory_service.add_to_short_term_memory(effective_brain_id, message.message, full_response))
         asyncio.create_task(memory_service.update_long_term_memory_async(effective_brain_id))
         asyncio.create_task(memory_service.save_conversation_to_brain_async(effective_brain_id, message.message, full_response))
+        # Trigger persona refresh so it reflects latest chats
+        asyncio.create_task(memory_service._refresh_persona_background(effective_brain_id))
         
         # Send end marker
         yield f"data: {json.dumps({'done': True, 'brain_id': effective_brain_id, 'system_prompt': message.system_prompt})}\n\n"
